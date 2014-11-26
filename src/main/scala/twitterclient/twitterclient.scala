@@ -33,7 +33,7 @@ object twitterclient {
   var numWorkers: Int = 0
   var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer()
   var maxNumOfFollowers = 100001
-  var T = 1
+  var T = 0.5
   
   def getHash(s: String): String = {
     val sha = MessageDigest.getInstance("SHA-256")
@@ -199,6 +199,7 @@ object twitterclient {
     
     println("get followers count finished.")
 
+    var sender: ArrayBuffer[Int] = new ArrayBuffer
 
     var tweetFrenquecy: ArrayBuffer[Double] = new ArrayBuffer
     var tweetStartTime: ArrayBuffer[Int] = new ArrayBuffer
@@ -206,14 +207,23 @@ object twitterclient {
     for(i <- 0 until numUsers){
       if (numOfFollowers(i) != 0) {
         // all in milliseconds
-//        tweetFrenquecy = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
-//        tweetStartTime = Random.nextInt(600 * 1000)
-        tweetFrenquecy.append(maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble)
-//        tweetStartTime.append(Random.nextInt(600 * 10))
+        //        tweetFrenquecy = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
+        //        tweetStartTime = Random.nextInt(600 * 1000)
+        //        tweetFrenquecy.append(maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble)
+        //        tweetStartTime.append(Random.nextInt(600 * 10))
+        tweetFrenquecy.append(1000.0)
         tweetStartTime.append(0)
-        println("client: " + i + " tweetFrequency seconds: " + tweetFrenquecy(i) / 1000.0 + " tweetStartTime: " + tweetStartTime(i) / 1000.0)
-        system.scheduler.schedule(tweetStartTime(i) milliseconds, tweetFrenquecy(i).toInt milliseconds, clientArray(i), SendTweet)
-        throughput += 1000.0 / tweetFrenquecy(i)
+        if (Random.nextDouble() < 0.05) {
+          sender.append(i)
+//          tweetStartTime.append(0)
+          println("client: " + i + " tweetFrequency seconds: " + tweetFrenquecy(i) / 1000.0 + " tweetStartTime: " + tweetStartTime(i) / 1000.0)
+          system.scheduler.schedule(tweetStartTime(i) milliseconds, tweetFrenquecy(i).toInt milliseconds, clientArray(i), SendTweet)
+          throughput += 1000.0 / tweetFrenquecy(i)
+        }else{
+          tweetFrenquecy(i) = 20*1000.0
+          println("client: " + i + " tweetFrequency seconds: " + tweetFrenquecy(i) / 1000.0 + " tweetStartTime: " + tweetStartTime(i) / 1000.0)
+          system.scheduler.schedule(tweetStartTime(i) milliseconds, tweetFrenquecy(i).toInt milliseconds, clientArray(i), SendTweet)
+        }
       }else{
         tweetFrenquecy.append(0)
         tweetStartTime.append(0)
@@ -224,16 +234,28 @@ object twitterclient {
     var index = numOfFollowers.indexOf(numOfFollowers.max, 0)
     println("max followers: " + numOfFollowers.max + " max " + numOfFollowers(index) + " index: " + index)
     println("start time: " + tweetStartTime(index) + " frequency: " + tweetFrenquecy(index) / 1000.0)
-    
+
     system.scheduler.scheduleOnce(40 seconds) {
       println("View time: " + getCurrentTime)
-      clientArray(index) ! ViewTweet
+      for (i <- 0 to 5)
+        clientArray(sender(i)) ! ViewTweet
     }
 
     system.scheduler.scheduleOnce(80 seconds) {
       println("View time: " + getCurrentTime)
-      clientArray(index) ! ViewTweet
+      for (i <- 0 to 5)
+        clientArray(sender(i)) ! ViewTweet
     }
+    
+//    system.scheduler.scheduleOnce(40 seconds) {
+//      println("View time: " + getCurrentTime)
+//      clientArray(index) ! ViewTweet
+//    }
+//
+//    system.scheduler.scheduleOnce(80 seconds) {
+//      println("View time: " + getCurrentTime)
+//      clientArray(index) ! ViewTweet
+//    }
 //    var prob: ArrayBuffer[Int] = new ArrayBuffer
 //    var sender: ArrayBuffer[Int] = new ArrayBuffer
 //    for(i <- 0 until numUsers){
@@ -271,26 +293,7 @@ object twitterclient {
     }
     
 
-//    var number = numUsers.toDouble * 0.01
-//    prob.append(number.toInt)
-//    number = numUsers.toDouble * 0.11
-//    prob.append(number.toInt)
-//    number = numUsers.toDouble * 0.56
-//    prob.append(number.toInt)
-//    number = numUsers.toDouble * 1.0
-//    prob.append(number.toInt)
-    
-//    for(i <- 0 until numUsers){
-//      var randSeconds = randBehavior(prob, numUsers)
-//      if(1 == i)
-//        println("user " + i + " randSeconds: " + randSeconds)
-//      if(randSeconds != -1)
-//        system.scheduler.schedule(0 seconds, randSeconds seconds, clientArray(i), SendTweet)
-//    }
-//    
-//    system.scheduler.scheduleOnce(30 seconds){
-//      clientArray(1) ! ViewTweet
-//    }
+
 
   }
 
