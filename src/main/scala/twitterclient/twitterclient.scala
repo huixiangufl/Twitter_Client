@@ -33,7 +33,8 @@ object twitterclient {
   var numWorkers: Int = 0
   var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer()
   var maxNumOfFollowers = 100001
-  var T = 0.5
+  var T = 0.0
+  var firstClientID = 0
   
   def getHash(s: String): String = {
     val sha = MessageDigest.getInstance("SHA-256")
@@ -69,10 +70,10 @@ object twitterclient {
       }
       
       case followers_num(num) => {
-        numOfFollowers(self.path.name.substring(6).toInt) = num
-//        println(self.path.name + " has " + numOfFollowers(self.path.name.substring(6).toInt) + " of followers")
-//        println(self.path.name)
+        var index = self.path.name.substring(6).toInt-firstClientID
+        numOfFollowers(index) = num
         receiveFollower = true
+//        println(self.path.name + " has " + numOfFollowers(index) + " of followers")
       }
       
       case IsReady => {
@@ -149,11 +150,11 @@ object twitterclient {
   }
 
   def main(args: Array[String]) {
-    var serverIP: String = if (args.length > 0) args(0) toString else "10.227.56.128:9000" 
+    var serverIP: String = if (args.length > 0) args(0) toString else "10.244.33.142:9000" 
     var simulateOption = if(args.length > 0) args(1) toInt else 0 //0 for simulating the real behavior, 1 for simulating ideal behavior
-    T = if(args.length > 0) args(2) toDouble else 1.0 // throughput = sum of all client(followers / (MaxFollowers * T)), if T=1, throughput = 100
+    T = if(args.length > 0) args(2) toDouble else 0.1 // throughput = sum of all client(followers / (MaxFollowers * T)), if T=1, throughput = 100
     var percentageOfActiveClients = if(args.length > 0) args(3) toDouble else 0.05 //percentage of active clients for ideal behavior
-    var firstClientID = if(args.length > 0) args(4) toInt else 0 // the first user client ID assigned to this client node 
+    firstClientID = if(args.length > 0) args(4) toInt else 100000 // the first user client ID assigned to this client node 
     
     implicit val system = ActorSystem("UserSystem")
     val twitterServer = system.actorSelection("akka.tcp://TwitterSystem@" + serverIP + "/user/boss")
@@ -177,11 +178,11 @@ object twitterclient {
     var clientArray = ArrayBuffer[ActorRef]()
     var counter = 0
     while (counter < numUsers) {
-      val client = system.actorOf(Props(classOf[clientActor], twitterServer, twitterWorkers(counter%numWorkers)), "client" + counter.toString)
+      val client = system.actorOf(Props(classOf[clientActor], twitterServer, twitterWorkers((counter+firstClientID)%numWorkers)), "client" + (counter+firstClientID).toString)
       clientArray.append(client)
-      counter += 1
       if(counter % 10000 == 0)
-        println("create " + counter)
+        println("create " + clientArray(counter).path.name)
+      counter += 1
       numOfFollowers.append(0)
     }
     println("create client actors finished")
