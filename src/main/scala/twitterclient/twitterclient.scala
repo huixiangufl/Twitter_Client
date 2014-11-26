@@ -24,11 +24,13 @@ object twitterclient {
   case object ViewTweet extends Message
   case object GetNumFollowers extends Message
   case object IsReady extends Message
+  case object GetServerWorkers extends Message
+  case object NumOfWorkerIsReady extends Message
 
   val numUsers: Int = 100000
   //number of server actors
   //actually server need to pass this parameter to the client
-  var numWorkers: Int = 100
+  var numWorkers: Int = 0
     
   def getHash(s: String): String = {
     val sha = MessageDigest.getInstance("SHA-256")
@@ -98,6 +100,7 @@ object twitterclient {
 
   }
 
+
   def randBehavior(prob: ArrayBuffer[Int], N: Int): Int = {
     var randProb = Random.nextInt(N)
     var behavior = prob.size
@@ -120,10 +123,45 @@ object twitterclient {
       return -1
     }
   }
+   
+  class bossActor(twitterServer: ActorSelection) extends Actor{
+    var IsReady: Boolean = false
+    
+    def receive = {
+      case GetServerWorkers => {
+        twitterServer ! GetNumofServerWorkers
+      }
+      
+      case numOfServerWorkers(num) => {
+        println("sender: " + sender + " number: " + num)
+        numWorkers = num
+        IsReady = true
+      }
+      
+      case NumOfWorkerIsReady => {
+        sender ! IsReady
+      }
+      
+    }
+  }
 
   def main(args: Array[String]) {
     implicit val system = ActorSystem("UserSystem")
     val twitterServer = system.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/boss")
+    
+    val clientBoss = system.actorOf(Props(classOf[bossActor], twitterServer), "clientBoss")
+    
+    clientBoss ! GetServerWorkers
+
+    implicit val timeout = Timeout(20 seconds)
+    var OfWorkerIsReady: Boolean = false
+    while (!OfWorkerIsReady) {
+      val future = clientBoss ? NumOfWorkerIsReady
+      OfWorkerIsReady = Await.result(future.mapTo[Boolean], timeout.duration)
+    }
+    
+    println("the number of server workers: " + numWorkers)
+    
     val twitterWorkers = ArrayBuffer[ActorSelection]()
     for(i <- 0 until numWorkers){
       val twitterWorker = system.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+i.toString)
