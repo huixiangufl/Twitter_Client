@@ -54,11 +54,10 @@ object twitterclient {
   }
   
   def genRandTweet(): String = {
-    "a" * ( 1 + Random.nextInt(20) )
+    "a" * ( 1 + Random.nextInt(140) )
   }
 
   class clientActor(twitterServer: ActorSelection, twitterWorker: ActorSelection) extends Actor {
-//    var numOfFollowers: Int = 0
     var receiveFollower: Boolean = false
     
     def receive = {
@@ -150,8 +149,14 @@ object twitterclient {
   }
 
   def main(args: Array[String]) {
+    var serverIP: String = if (args.length > 0) args(0) toString else "10.227.56.128:9000" 
+    var simulateOption = if(args.length > 0) args(1) toInt else 0 //0 for simulating the real behavior, 1 for simulating ideal behavior
+    T = if(args.length > 0) args(2) toDouble else 1.0 // throughput = sum of all client(followers / (MaxFollowers * T)), if T=1, throughput = 100
+    var percentageOfActiveClients = if(args.length > 0) args(3) toDouble else 0.05 //percentage of active clients for ideal behavior
+    var firstClientID = if(args.length > 0) args(4) toInt else 0 // the first user client ID assigned to this client node 
+    
     implicit val system = ActorSystem("UserSystem")
-    val twitterServer = system.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9000/user/boss")
+    val twitterServer = system.actorSelection("akka.tcp://TwitterSystem@" + serverIP + "/user/boss")
     
     val clientBoss = system.actorOf(Props(classOf[bossActor], twitterServer), "clientBoss")
     clientBoss ! GetServerWorkers
@@ -165,7 +170,7 @@ object twitterclient {
     
     val twitterWorkers = ArrayBuffer[ActorSelection]()
     for(i <- 0 until numWorkers){
-      val twitterWorker = system.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9000/user/"+i.toString)
+      val twitterWorker = system.actorSelection("akka.tcp://TwitterSystem@" + serverIP + "/user/"+i.toString)
       twitterWorkers.append(twitterWorker)
     }
     
@@ -179,7 +184,7 @@ object twitterclient {
         println("create " + counter)
       numOfFollowers.append(0)
     }
-    println("create finished")
+    println("create client actors finished")
 
 
     //First get number of followers
@@ -188,7 +193,6 @@ object twitterclient {
     
     //and then check out if all actor have recieved the numFollowers
     for(userClient <- clientArray){
-      
       implicit val timeout = Timeout(20 seconds)
       var ready: Boolean = false
       while (!ready) {
@@ -196,103 +200,79 @@ object twitterclient {
         ready = Await.result(future.mapTo[Boolean], timeout.duration)
       }
     }
-    
     println("get followers count finished.")
-
-    var sender: ArrayBuffer[Int] = new ArrayBuffer
-
-    var tweetFrenquecy: ArrayBuffer[Double] = new ArrayBuffer
-    var tweetStartTime: ArrayBuffer[Int] = new ArrayBuffer
-    var throughput = 0.0
-    for(i <- 0 until numUsers){
-      if (numOfFollowers(i) != 0) {
-        // all in milliseconds
-        //        tweetFrenquecy = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
-        //        tweetStartTime = Random.nextInt(600 * 1000)
-        //        tweetFrenquecy.append(maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble)
-        //        tweetStartTime.append(Random.nextInt(600 * 10))
-        tweetFrenquecy.append(1000.0)
-        tweetStartTime.append(0)
-        if (Random.nextDouble() < 0.05) {
-          sender.append(i)
-//          tweetStartTime.append(0)
+    
+    if(simulateOption == 0){
+      
+      var tweetFrenquecy: ArrayBuffer[Double] = new ArrayBuffer
+      var tweetStartTime: ArrayBuffer[Int] = new ArrayBuffer
+      var throughput = 0.0
+      for (i <- 0 until numUsers) {
+        if (numOfFollowers(i) != 0) {
+          // all in milliseconds
+          tweetFrenquecy.append(maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble)
+          tweetStartTime.append(Random.nextInt(600 * 10))
+          //        tweetFrenquecy.append(1000.0)
+          //        tweetStartTime.append(0)
           println("client: " + i + " tweetFrequency seconds: " + tweetFrenquecy(i) / 1000.0 + " tweetStartTime: " + tweetStartTime(i) / 1000.0)
           system.scheduler.schedule(tweetStartTime(i) milliseconds, tweetFrenquecy(i).toInt milliseconds, clientArray(i), SendTweet)
           throughput += 1000.0 / tweetFrenquecy(i)
-        }else{
-          tweetFrenquecy(i) = 20*1000.0
-          println("client: " + i + " tweetFrequency seconds: " + tweetFrenquecy(i) / 1000.0 + " tweetStartTime: " + tweetStartTime(i) / 1000.0)
-          system.scheduler.schedule(tweetStartTime(i) milliseconds, tweetFrenquecy(i).toInt milliseconds, clientArray(i), SendTweet)
+        } else {
+          tweetFrenquecy.append(0)
+          tweetStartTime.append(0)
         }
-      }else{
-        tweetFrenquecy.append(0)
-        tweetStartTime.append(0)
       }
-    }
-    println("the tweet throughput is: " + throughput)
-    
-    var index = numOfFollowers.indexOf(numOfFollowers.max, 0)
-    println("max followers: " + numOfFollowers.max + " max " + numOfFollowers(index) + " index: " + index)
-    println("start time: " + tweetStartTime(index) + " frequency: " + tweetFrenquecy(index) / 1000.0)
+      
+      println("the tweet throughput is: " + throughput)
 
-    system.scheduler.scheduleOnce(40 seconds) {
-      println("View time: " + getCurrentTime)
-      for (i <- 0 to 5)
-        clientArray(sender(i)) ! ViewTweet
+      var index = numOfFollowers.indexOf(numOfFollowers.max, 0)
+      println("max followers: " + numOfFollowers.max + " that client is: " + index)
+      println("start time: " + tweetStartTime(index) + " frequency: " + tweetFrenquecy(index) / 1000.0)
+
+      //only view the home timeline of the client who has the maximum number of followers
+      //after 40 seconds and 80 seconds respectively
+      system.scheduler.scheduleOnce(40 seconds) {
+        println("View time: " + getCurrentTime)
+        clientArray(index) ! ViewTweet
+      }
+
+      system.scheduler.scheduleOnce(80 seconds) {
+        println("View time: " + getCurrentTime)
+        clientArray(index) ! ViewTweet
+      }
+      
+    } else {
+      
+      var sender: ArrayBuffer[Int] = new ArrayBuffer
+      for (i <- 0 until numUsers) {
+        if (Random.nextDouble() <= percentageOfActiveClients) {
+          sender.append(i)
+          system.scheduler.schedule(0 seconds, 1 seconds, clientArray(i), SendTweet)
+        }
+      }
+      
+      println("sender size is: " + sender.size)
+      
+      //view the first 5 active clients' home timeline, after 40 seconds and 80 seconds respectively
+      system.scheduler.scheduleOnce(40 seconds) {
+        println("current time: " + getCurrentTime)
+        for (i <- 0 until 5)
+          clientArray(sender(i)) ! ViewTweet
+      }
+
+      system.scheduler.scheduleOnce(80 seconds) {
+        println("current time: " + getCurrentTime)
+        for (i <- 0 until 5)
+          clientArray(sender(i)) ! ViewTweet
+      }
+      
     }
 
-    system.scheduler.scheduleOnce(80 seconds) {
-      println("View time: " + getCurrentTime)
-      for (i <- 0 to 5)
-        clientArray(sender(i)) ! ViewTweet
-    }
-    
-//    system.scheduler.scheduleOnce(40 seconds) {
-//      println("View time: " + getCurrentTime)
-//      clientArray(index) ! ViewTweet
-//    }
-//
-//    system.scheduler.scheduleOnce(80 seconds) {
-//      println("View time: " + getCurrentTime)
-//      clientArray(index) ! ViewTweet
-//    }
-//    var prob: ArrayBuffer[Int] = new ArrayBuffer
-//    var sender: ArrayBuffer[Int] = new ArrayBuffer
-//    for(i <- 0 until numUsers){
-//      var randProb = Random.nextDouble()
-//      if(randProb <= 0.1){
-//        sender.append(i)
-//        system.scheduler.schedule(0 seconds, 1 seconds, clientArray(i), SendTweet)
-//      }
-//    }
-//    println("sender size is: " + sender.size)
-
-//    system.scheduler.scheduleOnce(30 seconds) {
-//      println("current time: " + getCurrentTime)
-//      for(i <- 0 to 9)
-//        clientArray(sender(i)) ! ViewTweet
-//    }
-    
-    /*
-    for debugingg
-    system.scheduler.schedule(0 seconds, 1 seconds, clientArray(1), SendTweet)
-    system.scheduler.schedule(0 seconds, 1 seconds, clientArray(10), SendTweet)
-    system.scheduler.schedule(0 seconds, 1 seconds, clientArray(4002), SendTweet)
-    
-    system.scheduler.scheduleOnce(20 seconds){
-      clientArray(1) ! ViewTweet
-      clientArray(10) ! ViewTweet
-      clientArray(4002) ! ViewTweet
-    }
-    * 
-    */
-    
-    
+    //after 600 seconds shutdown the client
     system.scheduler.scheduleOnce(600 seconds) {
       system.shutdown()
     }
-    
-
+     
 
 
   }
