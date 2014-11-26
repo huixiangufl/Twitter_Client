@@ -22,7 +22,7 @@ object twitterclient {
   sealed trait Message
   case object SendTweet extends Message
   case object ViewTweet extends Message
-  case object Init extends Message
+  case object GetNumFollowers extends Message
   case object IsReady extends Message
 
   val numUsers: Int = 100000
@@ -54,7 +54,7 @@ object twitterclient {
     var receiveFollower: Boolean = false
     
     def receive = {
-      case Init => {
+      case GetNumFollowers => {
         var i = self.path.name.substring(6).toInt
         var twitterWorker = context.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+(i/numPerWorker).toString)
         //println("twitterWorker: "+twitterWorker+ " i: "+i+" i/numWorker: " + i/numPerWorker)
@@ -134,11 +134,13 @@ object twitterclient {
     
         
     for(userClient <- clientArray)
-      userClient ! Init
+      userClient ! GetNumFollowers
     
     //First get number of followers
-    // and then check out if all actor have recieved the numFollowers
+    //and then check out if all actor have recieved the numFollowers
     for(userClient <- clientArray){
+//      userClient ! GetNumFollowers
+      
       implicit val timeout = Timeout(20 seconds)
       var ready: Boolean = false
       while (!ready) {
