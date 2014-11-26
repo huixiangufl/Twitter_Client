@@ -28,7 +28,6 @@ object twitterclient {
   val numUsers: Int = 100000
   //number of server actors
   //actually server need to pass this parameter to the client
-  var numPerWorker: Int = 5000
   var numWorkers: Int = 100
     
   def getHash(s: String): String = {
@@ -48,22 +47,26 @@ object twitterclient {
   def getCurrentTime(): Date = {
     Calendar.getInstance().getTime()
   }
+  
+  def genRandTweet(): String = {
+    "a" * ( 1 + Random.nextInt(140) )
+  }
 
-  class clientActor(twitterServer: ActorSelection) extends Actor {
+  class clientActor(twitterServer: ActorSelection, twitterWorker: ActorSelection) extends Actor {
     var numOfFollowers: Int = 0
     var receiveFollower: Boolean = false
     
     def receive = {
       case GetNumFollowers => {
         var i = self.path.name.substring(6).toInt
-        var twitterWorker = context.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+(i/numPerWorker).toString)
-        //println("twitterWorker: "+twitterWorker+ " i: "+i+" i/numWorker: " + i/numPerWorker)
-        twitterWorker ! numFollowers(i%numPerWorker)
+//        var twitterWorker = context.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+(i/numWorkers).toString)
+//        println("twitterWorker: "+twitterWorker+ " i: "+i+" i/numWorker: " + i/numWorkers)
+        twitterWorker ! numFollowers(i/numWorkers)
       }
       
       case followers_num(num) => {
         numOfFollowers = num
-        println(self.path.name + " has " + numOfFollowers + " of followers")
+//        println(self.path.name + " has " + numOfFollowers + " of followers")
         receiveFollower = true
       }
       
@@ -72,16 +75,16 @@ object twitterclient {
       }
       
       case SendTweet => {
-        val t = Tweet(self.path.name.substring(6).toInt, "what are you doing?", getCurrentTime, null)
+        val t = Tweet(self.path.name.substring(6).toInt, genRandTweet, getCurrentTime, null)
         t.ref_id = getHash(t.user_id.toString + t.text + dateToString(t.time_stamp))
         twitterServer ! getTweet(t)
       }
 
       case ViewTweet => {
         var i = self.path.name.substring(6).toInt
-        var twitterWorker = context.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+(i/numPerWorker).toString)
-//        println("twitterWorker: "+twitterWorker+ " i: "+i+" i/numWorker: " + i/numPerWorker)
-        twitterWorker ! viewUserTimeline(i%numPerWorker)
+//        var twitterWorker = context.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+(i/numWorkers).toString)
+//        println("twitterWorker: "+twitterWorker+ " i: "+i+" i/numWorker: " + i/numWorkers)
+        twitterWorker ! viewUserTimeline(i/numWorkers)
       }
       
 
@@ -121,25 +124,30 @@ object twitterclient {
   def main(args: Array[String]) {
     implicit val system = ActorSystem("UserSystem")
     val twitterServer = system.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/boss")
+    val twitterWorkers = ArrayBuffer[ActorSelection]()
+    for(i <- 0 until numWorkers){
+      val twitterWorker = system.actorSelection("akka.tcp://TwitterSystem@10.227.56.128:9002/user/"+i.toString)
+      twitterWorkers.append(twitterWorker)
+    }
+    
     var clientArray = ArrayBuffer[ActorRef]()
     var counter = 0
     while (counter < numUsers) {
-      val client = system.actorOf(Props(classOf[clientActor], twitterServer), "client" + counter.toString)
+      val client = system.actorOf(Props(classOf[clientActor], twitterServer, twitterWorkers(counter%numWorkers)), "client" + counter.toString)
       clientArray.append(client)
       counter += 1
       if(counter % 10000 == 0)
         println("create " + counter)
     }
     println("create finished")
-    
-        
-    for(userClient <- clientArray)
+
+
+    //First get number of followers
+    for (userClient <- clientArray)
       userClient ! GetNumFollowers
     
-    //First get number of followers
     //and then check out if all actor have recieved the numFollowers
     for(userClient <- clientArray){
-//      userClient ! GetNumFollowers
       
       implicit val timeout = Timeout(20 seconds)
       var ready: Boolean = false
@@ -161,7 +169,7 @@ object twitterclient {
     }
     println("sender size is: " + sender.size)
 
-    system.scheduler.scheduleOnce(20 seconds) {
+    system.scheduler.scheduleOnce(30 seconds) {
       println("current time: " + getCurrentTime)
       for(i <- 0 to 9)
         clientArray(sender(i)) ! ViewTweet
