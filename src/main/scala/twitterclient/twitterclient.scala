@@ -177,6 +177,7 @@ object twitterclient {
       if(counter % 10000 == 0)
         println("create " + counter)
     }
+    
     println("create finished")
 
 
