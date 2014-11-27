@@ -30,7 +30,7 @@ object twitterclient {
   case object ClientBossReadyToWork extends Message
   case object CheckServerBossReady extends Message
 
-  val numUsers: Int = 100000
+  var numUsers: Int = 100000
   //number of server actors
   //actually server need to pass this parameter to the client
   var numWorkers: Int = 0
@@ -189,11 +189,12 @@ object twitterclient {
   }
 
   def main(args: Array[String]) {
-    var serverIP: String = if (args.length > 0) args(0) toString else "10.227.56.128:9001" // "10.227.56.128:9000""10.244.33.142:9000"
+    var serverIP: String = if (args.length > 0) args(0) toString else "10.244.33.144:9001" // "10.227.56.128:9000""10.244.33.142:9000"
     var simulateOption = if (args.length > 0) args(1) toInt else 0 //0 for simulating the real behavior, 1 for simulating ideal behavior
     T = if (args.length > 0) args(2) toDouble else 0.1 // throughput = sum of all client(followers / (MaxFollowers * T)), if T=1, throughput = 100
     var percentageOfActiveClients = if (args.length > 0) args(3) toDouble else 0.05 //percentage of active clients for ideal behavior
     firstClientID = if (args.length > 0) args(4) toInt else 100000 // the first user client ID assigned to this client node 
+    numUsers = if (args.length > 0) args(5) toInt else 100000 // the number of users assigned to each client
 
     implicit val system = ActorSystem("UserSystem")
     val twitterServer = system.actorSelection("akka.tcp://TwitterSystem@" + serverIP + "/user/boss")
