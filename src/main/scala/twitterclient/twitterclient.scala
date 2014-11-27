@@ -39,7 +39,7 @@ object twitterclient {
   var T = 0.0
   var firstClientID = 0
 
-  var serverBossReadyToWork: Boolean = false
+  //var serverBossReadyToWork: Boolean = false
 
   def getHash(s: String): String = {
     val sha = MessageDigest.getInstance("SHA-256")
@@ -166,10 +166,10 @@ object twitterclient {
       }
 
       case ServerReady => {
-        println("receive server ready from " + sender + " serverBossReadyToWork " + serverBossReadyToWork)
-        serverBossReadyToWork = true
+        //println("receive server ready from " + sender + " serverBossReadyToWork " + serverBossReadyToWork)
+        //serverBossReadyToWork = true
         ServerBossReady = true
-        println("receive server ready from " + sender + " serverBossReadyToWork " + serverBossReadyToWork)
+        //println("receive server ready from " + sender + " serverBossReadyToWork " + serverBossReadyToWork)
       }
 
       case SendReadyToServerActor => {
@@ -291,6 +291,7 @@ object twitterclient {
       }
 
       println("the tweet throughput is: " + throughput)
+      Thread.sleep(10)
 
       var index = numOfFollowers.indexOf(numOfFollowers.max, 0)
       println("max followers: " + numOfFollowers.max + " that client is: " + index)
