@@ -237,9 +237,7 @@ object twitterclient {
       }
     }
 
-//    while (!serverBossReadyToWork) {
-//      //wait here
-//    }
+
 
     println("serverBossReadyToWork finished.")
 
@@ -280,10 +278,9 @@ object twitterclient {
           // all in milliseconds
           tweetFrenquecy.append(maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble)
           tweetStartTime.append(Random.nextInt(600 * 1000))
-          //        tweetFrenquecy.append(1000.0)
-          //        tweetStartTime.append(0)
           //          println("client: " + i + " tweetFrequency seconds: " + tweetFrenquecy(i) / 1000.0 + " tweetStartTime: " + tweetStartTime(i) / 1000.0)
           system.scheduler.schedule(tweetStartTime(i) milliseconds, tweetFrenquecy(i).toInt milliseconds, clientArray(i), SendTweet)
+          system.scheduler.scheduleOnce((tweetStartTime(i)+(tweetFrenquecy(i) * 1.5).toInt) milliseconds, clientArray(i), ViewTweet)
           throughput += 1000.0 / tweetFrenquecy(i)
         } else {
           tweetFrenquecy.append(0)
@@ -297,17 +294,17 @@ object twitterclient {
       println("max followers: " + numOfFollowers.max + " that client is: " + index)
       println("start time: " + tweetStartTime(index) + " frequency: " + tweetFrenquecy(index) / 1000.0)
 
-      //only view the home timeline of the client who has the maximum number of followers
-      //after 40 seconds and 80 seconds respectively
-      system.scheduler.scheduleOnce(40 seconds) {
-        println("View time: " + getCurrentTime)
-        clientArray(index) ! ViewTweet
-      }
-
-      system.scheduler.scheduleOnce(80 seconds) {
-        println("View time: " + getCurrentTime)
-        clientArray(index) ! ViewTweet
-      }
+//      //only view the home timeline of the client who has the maximum number of followers
+//      //after 40 seconds and 80 seconds respectively
+//      system.scheduler.scheduleOnce(40 seconds) {
+//        println("View time: " + getCurrentTime)
+//        clientArray(index) ! ViewTweet
+//      }
+//
+//      system.scheduler.scheduleOnce(80 seconds) {
+//        println("View time: " + getCurrentTime)
+//        clientArray(index) ! ViewTweet
+//      }
 
     } else {
 
@@ -316,23 +313,24 @@ object twitterclient {
         if (Random.nextDouble() <= percentageOfActiveClients) {
           sender.append(i)
           system.scheduler.schedule(0 seconds, 1 seconds, clientArray(i), SendTweet)
+          system.scheduler.scheduleOnce(1.5 seconds, clientArray(i), ViewTweet)
         }
       }
 
       println("sender size is: " + sender.size)
 
-      //view the first 5 active clients' home timeline, after 40 seconds and 80 seconds respectively
-      system.scheduler.scheduleOnce(40 seconds) {
-        println("current time: " + getCurrentTime)
-        for (i <- 0 until 5)
-          clientArray(sender(i)) ! ViewTweet
-      }
-
-      system.scheduler.scheduleOnce(80 seconds) {
-        println("current time: " + getCurrentTime)
-        for (i <- 0 until 5)
-          clientArray(sender(i)) ! ViewTweet
-      }
+//      //view the first 5 active clients' home timeline, after 40 seconds and 80 seconds respectively
+//      system.scheduler.scheduleOnce(40 seconds) {
+//        println("current time: " + getCurrentTime)
+//        for (i <- 0 until 5)
+//          clientArray(sender(i)) ! ViewTweet
+//      }
+//
+//      system.scheduler.scheduleOnce(80 seconds) {
+//        println("current time: " + getCurrentTime)
+//        for (i <- 0 until 5)
+//          clientArray(sender(i)) ! ViewTweet
+//      }
 
     }
 
