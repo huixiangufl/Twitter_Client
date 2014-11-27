@@ -208,6 +208,7 @@ object twitterclient {
       OfWorkerIsReady = Await.result(future.mapTo[Boolean], timeout.duration)
     }
     println("the number of server workers: " + numWorkers)
+    
 
     val twitterWorkers = ArrayBuffer[ActorSelection]()
     for (i <- 0 until numWorkers) {
