@@ -59,9 +59,14 @@ object twitterclient {
     Calendar.getInstance().getTime()
   }
 
-  def genRandTweet(): String = {
-    "a" * (1 + Random.nextInt(140))
+  def genRandCharater(): Char = {
+    ('a' to 'z')(util.Random.nextInt(26))
   }
+
+  def genRandTweet(): String = {
+    genRandCharater() + "a" * (0 + Random.nextInt(139))
+  }
+  
 
   class clientActor(twitterServer: ActorSelection, twitterWorker: ActorSelection) extends Actor {
     var receiveFollower: Boolean = false
@@ -100,16 +105,25 @@ object twitterclient {
       }
 
       case displayUserTimeLine(userHomeTimeLine) => {
-        println(self.path.name + " received timeline: at " + getCurrentTime)
+        println(self.path.name + " received User Timeline: at " + getCurrentTime)
         for (tweet <- userHomeTimeLine)
-          println("receive time: " + getCurrentTime + "   " + tweet)
+          println(tweet)
         println("")
       }
 
       case displayHomeTimeLine(userHomeTimeLine) => {
-        println(self.path.name + " received Homeline: at " + getCurrentTime)
+        println(self.path.name + " received Home Timeline: at " + getCurrentTime)
         for (tweet <- userHomeTimeLine)
-          println("receive time: " + getCurrentTime + "   " + tweet)
+          println(tweet)
+        
+        for (tweet <- userHomeTimeLine){
+          if('a' == tweet(0)){
+            val t = Tweet(self.path.name.substring(6).toInt, '@' + tweet, getCurrentTime, null)
+            t.ref_id = getHash(t.user_id .toString + t.text + dateToString(t.time_stamp ))
+            twitterServer ! getTweet(t)
+            println("@@@@@@@@@" + self.path.name.substring(6) + " forwards the tweet " + tweet)
+          }
+        }
         println("")
       }
 
@@ -290,12 +304,12 @@ object twitterclient {
         }
       }
 
-      println("the tweet throughput is: " + throughput)
-      Thread.sleep(10)
+//      println("the tweet throughput is: " + throughput)
+//      Thread.sleep(10)
 
       var index = numOfFollowers.indexOf(numOfFollowers.max, 0)
       println("max followers: " + numOfFollowers.max + " that client is: " + index)
-      println("start time: " + tweetStartTime(index) + " frequency: " + tweetFrenquecy(index) / 1000.0)
+      println("start time: " + tweetStartTime(index) / 1000.0 + " frequency: " + tweetFrenquecy(index) / 1000.0)
 
 //      //only view the home timeline of the client who has the maximum number of followers
 //      //after 40 seconds and 80 seconds respectively
