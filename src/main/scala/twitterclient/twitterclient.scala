@@ -203,7 +203,7 @@ object twitterclient {
   }
 
   def main(args: Array[String]) {
-    var serverIP: String = if (args.length > 0) args(0) toString else "10.244.33.144:9001" // "10.227.56.128:9000""10.244.33.142:9000"
+    var serverIP: String = if (args.length > 0) args(0) toString else "10.227.56.44:9001" // "10.227.56.128:9000""10.244.33.142:9000"
     var simulateOption = if (args.length > 0) args(1) toInt else 0 //0 for simulating the real behavior, 1 for simulating ideal behavior
     T = if (args.length > 0) args(2) toDouble else 0.1 // throughput = sum of all client(followers / (MaxFollowers * T)), if T=1, throughput = 100
     var percentageOfActiveClients = if (args.length > 0) args(3) toDouble else 0.05 //percentage of active clients for ideal behavior
