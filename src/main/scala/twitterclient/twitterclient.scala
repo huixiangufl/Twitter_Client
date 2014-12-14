@@ -207,7 +207,7 @@ object twitterclient {
     var simulateOption = if (args.length > 0) args(1) toInt else 0 //0 for simulating the real behavior, 1 for simulating ideal behavior
     T = if (args.length > 0) args(2) toDouble else 0.1 // throughput = sum of all client(followers / (MaxFollowers * T)), if T=1, throughput = 100
     var percentageOfActiveClients = if (args.length > 0) args(3) toDouble else 0.05 //percentage of active clients for ideal behavior
-    firstClientID = if (args.length > 0) args(4) toInt else 100000 // the first user client ID assigned to this client node 
+    firstClientID = if (args.length > 0) args(4) toInt else 0 // the first user client ID assigned to this client node
     numUsers = if (args.length > 0) args(5) toInt else 100000 // the number of users assigned to each client
 
     implicit val system = ActorSystem("UserSystem")
