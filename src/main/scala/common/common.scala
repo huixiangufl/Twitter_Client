@@ -18,4 +18,28 @@ case class viewUserTimeline(user_id: Int)
 case class getTweet(t: Tweet)
 case class displayUserTimeLine(userTimeLine: ArrayBuffer[String])
 case class displayHomeTimeLine(HomeTimeLine: ArrayBuffer[String])
-case class Tweet(user_id: Long, text: String, time_stamp: Date, var ref_id: String)
+case class Tweet(user_id: Int, text: String, time_stamp: String, var ref_id: String)
+
+//Advanced API Implementation
+//case class getMentionTimeline(user_id: Int)
+//
+////Tweet API
+//case class getMyRetweet(user_id: Int)
+//case class postRetweet(user_id: Int, ref_id: String)
+//case class getOthersRetweet(user_id: Int)
+//
+////Direct Message API
+//case class getDirectMessage(user_id: Int)
+//case class getDirectMessageSent(user_id: Int)
+//case class getDirectMessageShow()
+//case class postDirectMessage()
+//
+////Friends and Followers API
+//case class getFriends()
+//case class getFollowers()
+//case class getIncomingFriends()
+//case class gerOutgoingFriends()
+//case class getFriendShow()
+//case class postCreateFriend()
+//case class postDestroyFriend()
+//case class postUpdateFriend()
