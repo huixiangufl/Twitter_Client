@@ -2,6 +2,7 @@ package common
 import java.util.Date
 import scala.collection.mutable.ArrayBuffer
 
+
 sealed trait Message
 case object GetNumofServerWorkers extends Message
 case class numOfServerWorkers(num: Int)
@@ -19,6 +20,7 @@ case class getTweet(t: Tweet)
 case class displayUserTimeLine(userTimeLine: ArrayBuffer[String])
 case class displayHomeTimeLine(HomeTimeLine: ArrayBuffer[String])
 case class Tweet(user_id: Int, text: String, time_stamp: String, var ref_id: String)
+case class DirectMessage(sender_id: Int, receiver_id: Double, text: String, time_stamp: String, var ref_id: String)
 
 //Advanced API Implementation
 //case class getMentionTimeline(user_id: Int)
@@ -37,9 +39,9 @@ case class Tweet(user_id: Int, text: String, time_stamp: String, var ref_id: Str
 ////Friends and Followers API
 //case class getFriends()
 //case class getFollowers()
-//case class getIncomingFriends()
-//case class gerOutgoingFriends()
-//case class getFriendShow()
+//case class getIncomingFriends() ? not implemented?
+//case class gerOutgoingFriends() ? not implemented?
+//case class getFriendShow() ? not implemented
 //case class postCreateFriend()
 //case class postDestroyFriend()
-//case class postUpdateFriend()
+//case class postUpdateFriend() ? not implemented?

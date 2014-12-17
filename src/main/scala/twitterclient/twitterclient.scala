@@ -13,7 +13,6 @@ import java.util.Date
 import scala.concurrent.duration._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-import akka.pattern.ask
 import spray.json._
 
 import akka.actor.ActorSystem
@@ -29,6 +28,33 @@ object TweetProtocol extends DefaultJsonProtocol {
   implicit val followerNumFormat = jsonFormat2(FollowerNum)
   implicit val tweetFormat = jsonFormat4(Tweet)
   implicit val messageFormat = jsonFormat5(DirectMessage)
+}
+
+object utility {
+   def getHash(s: String): String = {
+    MessageDigest.getInstance("SHA-256").digest(s.getBytes)
+      .foldLeft("")((s: String, b: Byte) => s +
+      Character.forDigit((b & 0xf0) >> 4, 16) +
+      Character.forDigit(b & 0x0f, 16))
+  }
+
+  def dateToString(current: Date): String = {
+    val formatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss.SSS")
+    val s: String = formatter.format(current)
+    return s
+  }
+
+  def getCurrentTime(): Date = {
+    Calendar.getInstance().getTime()
+  }
+
+  def genRandCharater(): Char = {
+    ('a' to 'z')(util.Random.nextInt(26))
+  }
+
+  def genRandTweet(): String = {
+    genRandCharater() + "a" * (0 + Random.nextInt(139))
+  }
 }
 
 
@@ -61,6 +87,7 @@ object twitterclient extends App {
   implicit val system = ActorSystem("UserSystem")
   import system.dispatcher
 
+  import utility._
   /*define various pipelines globally*/
   import SprayJsonSupport._
   import TweetProtocol._
@@ -68,36 +95,10 @@ object twitterclient extends App {
   val postTweetPipeline = sendReceive
   val getNumPipeline = sendReceive ~> unmarshal[String]//~> unmarshal[Int]
   val followerPipeline = sendReceive ~> unmarshal[FollowerNum]
-//  val tweetPipeline = sendReceive ~> unmarshal[Tweet]
   val directMessagesPipeline = sendReceive ~> unmarshal[List[DirectMessage]]
   val timelinePipeline = sendReceive ~> unmarshal[List[Tweet]]
   val arrayPipeline = sendReceive ~> unmarshal[Array[Int]]
 
-  def getHash(s: String): String = {
-    val sha = MessageDigest.getInstance("SHA-256")
-    sha.digest(s.getBytes)
-      .foldLeft("")((s: String, b: Byte) => s +
-      Character.forDigit((b & 0xf0) >> 4, 16) +
-      Character.forDigit(b & 0x0f, 16))
-  }
-
-  def dateToString(current: Date): String = {
-    val formatter = new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss.SSS")
-    val s: String = formatter.format(current)
-    return s
-  }
-
-  def getCurrentTime(): Date = {
-    Calendar.getInstance().getTime()
-  }
-
-  def genRandCharater(): Char = {
-    ('a' to 'z')(util.Random.nextInt(26))
-  }
-
-  def genRandTweet(): String = {
-    genRandCharater() + "a" * (0 + Random.nextInt(139))
-  }
 
   //mentionID: -1 for default tweet message, other wise the user the tweet message mentions
   def postTweet(t: Tweet, mentionID: Int) {
@@ -110,7 +111,6 @@ object twitterclient extends App {
   }
 
 
-
   def forwardTweet(userID: Int, tweet: Tweet) {
     val t = Tweet(userID, "@" + tweet.user_id.toString + ":" + tweet.text, dateToString(getCurrentTime), null)
     t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
@@ -119,19 +119,19 @@ object twitterclient extends App {
   }
 
   class clientWorkerActor( ) extends Actor{
-    val userID = self.path.name.substring(6).toInt
+    val userID = self.path.name.toInt
     def receive = {
       case SendTweet => {
         val t = Tweet(userID, genRandTweet, dateToString(getCurrentTime), null)
         t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
         postTweet(t, -1)
-        println(self.path.name + " sends tweet: " + t)
+        println(userID + " sends tweet: " + t)
       }
       case MentionTweet(mentionID) => {
         val t = Tweet(userID, "@" + mentionID.toString + genRandTweet, dateToString(getCurrentTime), null)
         t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
         postTweet(t, mentionID)
-        println(self.path.name + " mentions tweet: " + t)
+        println(userID + " mentions tweet: " + t)
       }
       case PostDirectMessage(receiverID) => {
         val t = DirectMessage(userID, receiverID, genRandTweet, dateToString(getCurrentTime), null)
@@ -144,8 +144,7 @@ object twitterclient extends App {
       case ViewHomeTimeline => {
         val userTimelineResponse = timelinePipeline(Get("http://" + serverIP + "/viewHomeTimeline/" + userID))
         userTimelineResponse.foreach { response =>
-          print(self.path.name + "  hometimeline: \n" + response.toJson.prettyPrint)
-          println()
+          println(userID + "  hometimeline: \n" + response.toJson.prettyPrint + "\n")
 
           //forwards the tweet which first character is 'a'
           for(tweet <- response) {
@@ -158,43 +157,37 @@ object twitterclient extends App {
       case ViewUserTimeline => {
         val userTimelineResponse = timelinePipeline(Get("http://" + serverIP + "/viewUserTimeline/" + userID))
         userTimelineResponse.foreach { response =>
-          print(self.path.name + "  userTimeline: \n" + response.toJson.prettyPrint)
-          println()
+          println(userID + "  userTimeline: \n" + response.toJson.prettyPrint + "\n")
         }
       }
       case GetMentionTimeline => {
         val mentionTimelineResponse = timelinePipeline(Get("http://" + serverIP + "/viewMentionTimeline/" + userID))
         mentionTimelineResponse.foreach { response =>
-          println(self.path.name + " mentionTimeline: \n" + response.toJson.prettyPrint)
-          println()
+          println(userID + " mentionTimeline: \n" + response.toJson.prettyPrint + "\n")
         }
       }
       case ViewReceiveMessage => {
         val receiveMessageResponse = directMessagesPipeline(Get("http://" + serverIP + "/viewReceiveMessage/" + userID))
         receiveMessageResponse.foreach { response =>
-          print(self.path.name + "  receivedMessages: \n" + response.toJson.prettyPrint)
-          println()
+          println(userID + "  receivedMessages: \n" + response.toJson.prettyPrint + "\n")
         }
       }
       case ViewSendMessage => {
         val sendMessageResponse = directMessagesPipeline(Get("http://" + serverIP + "/viewSendMessage/" + userID))
         sendMessageResponse.foreach { response =>
-          print(self.path.name + "  sentMessages: \n" + response.toJson.prettyPrint)
-          println()
+          println(userID + "  sentMessages: \n" + response.toJson.prettyPrint + "\n")
         }
       }
       case GetFriends => {
         val friendsResponse = arrayPipeline(Get("http://" + serverIP + "/getFriends/" + userID))
         friendsResponse.foreach { response =>
-          println(self.path.name + " friendsList: " + response.toList)
-          println()
+          println(userID + " friendsList: " + response.toList + "\n")
         }
       }
       case GetFollowers => {
         val followersResponse = arrayPipeline(Get("http://" + serverIP + "/getFollowers/" + userID))
         followersResponse.foreach { response =>
-          println(self.path.name + " followersList: " + response.toList)
-          println()
+          println(userID + " followersList: " + response.toList + "\n")
         }
       }
       case CreateFriendship(newFriend) => {
@@ -213,7 +206,7 @@ object twitterclient extends App {
   /*create client workers*/
   val twitterClientWorkers = ArrayBuffer[ActorRef]()
   for(i <-0 until numClientWorkers) {
-    val twitterClientWorker = system.actorOf(Props(classOf[clientWorkerActor]), "client" + (i + firstClientID).toString)
+    val twitterClientWorker = system.actorOf(Props(classOf[clientWorkerActor]), (i + firstClientID).toString)
     twitterClientWorkers.append(twitterClientWorker)
     numOfFollowers.append(0)
   }
@@ -231,17 +224,17 @@ object twitterclient extends App {
   }
   println("finish.")
 
+  /*check if all actors get their followers count*/
   var num = 0
   while(num < numClientWorkers) {
     val responseFuture2 = getNumPipeline ( Get("http://" + serverIP + "/getNum") )
     responseFuture2.foreach { response =>
-      println("current num: " + num)
       num = response.toInt
     }
     Thread.sleep(1000L)
   }
   Thread.sleep(1000L)
-  println("get followers count finish. " + numOfFollowers(1))
+  println("get followers num finish. " + numOfFollowers(1))
 
 
   /* simulate the behavior of sending tweets
@@ -363,11 +356,11 @@ object twitterclient extends App {
   Thread.sleep(2000L)
 
   twitterClientWorkers(1) ! ViewSendMessage
-  twitterClientWorkers(3339) ! ViewReceiveMessage
+  twitterClientWorkers(7235) ! ViewReceiveMessage
   Thread.sleep(2000L)
-  twitterClientWorkers(3339) ! PostDestroyMessage(0.2)
+  twitterClientWorkers(7235) ! PostDestroyMessage(0.2)
   Thread.sleep(2000L)
-  twitterClientWorkers(3339) ! ViewReceiveMessage
+  twitterClientWorkers(7235) ! ViewReceiveMessage
 
   twitterClientWorkers(0) ! ViewReceiveMessage
   Thread.sleep(2000L)
