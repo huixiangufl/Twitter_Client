@@ -28,6 +28,7 @@ case class FollowerNum(var userID: Int, var numFollowers: Int)
 object TweetProtocol extends DefaultJsonProtocol {
   implicit val followerNumFormat = jsonFormat2(FollowerNum)
   implicit val tweetFormat = jsonFormat4(Tweet)
+  implicit val messageFormat = jsonFormat5(DirectMessage)
 }
 
 
@@ -44,8 +45,12 @@ object twitterclient extends App {
   case class CreateFriendship (newFriend: Double) extends Message
   case class DestroyFriendship (oldFriend: Double) extends Message
   case class DestroyTweet(deleteTweet: Double) extends Message
+  case class PostDirectMessage(receiverID: Double) extends Message
+  case class PostDestroyMessage(delID: Double) extends Message
+  case object ViewReceiveMessage extends Message
+  case object ViewSendMessage extends Message
 
-  var numClientWorkers: Int = 1000
+  var numClientWorkers: Int = 10000
   var firstClientID: Int = 0
   var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer
   var maxNumOfFollowers = 100001
@@ -63,7 +68,8 @@ object twitterclient extends App {
   val postTweetPipeline = sendReceive
   val getNumPipeline = sendReceive ~> unmarshal[String]//~> unmarshal[Int]
   val followerPipeline = sendReceive ~> unmarshal[FollowerNum]
-  val tweetPipeline = sendReceive ~> unmarshal[Tweet]
+//  val tweetPipeline = sendReceive ~> unmarshal[Tweet]
+  val directMessagesPipeline = sendReceive ~> unmarshal[List[DirectMessage]]
   val timelinePipeline = sendReceive ~> unmarshal[List[Tweet]]
   val arrayPipeline = sendReceive ~> unmarshal[Array[Int]]
 
@@ -98,6 +104,13 @@ object twitterclient extends App {
     postTweetPipeline(Post("http://" + serverIP + "/postTweet?userID=" + t.user_id + "&mentionID=" + mentionID + "&text=" + t.text + "&timeStamp=" + t.time_stamp + "&refID=" + t.ref_id))
   }
 
+
+  def postDirectMessage(d: DirectMessage) {
+    postTweetPipeline(Post("http://" + serverIP + "/postMessage?userID=" + d.sender_id + "&sendID=" + d.receiver_id + "&text=" + d.text + "&timeStamp=" + d.time_stamp + "&refID=" + d.ref_id))
+  }
+
+
+
   def forwardTweet(userID: Int, tweet: Tweet) {
     val t = Tweet(userID, "@" + tweet.user_id.toString + ":" + tweet.text, dateToString(getCurrentTime), null)
     t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
@@ -119,6 +132,14 @@ object twitterclient extends App {
         t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
         postTweet(t, mentionID)
         println(self.path.name + " mentions tweet: " + t)
+      }
+      case PostDirectMessage(receiverID) => {
+        val t = DirectMessage(userID, receiverID, genRandTweet, dateToString(getCurrentTime), null)
+        t.ref_id = getHash(t.sender_id.toString + t.receiver_id.toString + t.text + t.time_stamp)
+        postDirectMessage(t)
+      }
+      case PostDestroyMessage(delID) => {
+        postTweetPipeline(Post("http://" + serverIP + "/destroyMessage?user_ID=" + userID + "&del_ID=" + delID))
       }
       case ViewHomeTimeline => {
         val userTimelineResponse = timelinePipeline(Get("http://" + serverIP + "/viewHomeTimeline/" + userID))
@@ -144,7 +165,21 @@ object twitterclient extends App {
       case GetMentionTimeline => {
         val mentionTimelineResponse = timelinePipeline(Get("http://" + serverIP + "/viewMentionTimeline/" + userID))
         mentionTimelineResponse.foreach { response =>
-          println(self.path.name + " mentionTimeline: " + response.toJson.prettyPrint)
+          println(self.path.name + " mentionTimeline: \n" + response.toJson.prettyPrint)
+          println()
+        }
+      }
+      case ViewReceiveMessage => {
+        val receiveMessageResponse = directMessagesPipeline(Get("http://" + serverIP + "/viewReceiveMessage/" + userID))
+        receiveMessageResponse.foreach { response =>
+          print(self.path.name + "  receivedMessages: \n" + response.toJson.prettyPrint)
+          println()
+        }
+      }
+      case ViewSendMessage => {
+        val sendMessageResponse = directMessagesPipeline(Get("http://" + serverIP + "/viewSendMessage/" + userID))
+        sendMessageResponse.foreach { response =>
+          print(self.path.name + "  sentMessages: \n" + response.toJson.prettyPrint)
           println()
         }
       }
@@ -191,16 +226,19 @@ object twitterclient extends App {
     val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + i))
     responseFuture.foreach { response =>
       numOfFollowers(i) = response.numFollowers
+      println("client " + i + " followers: " + numOfFollowers(i))
     }
   }
+  println("finish.")
 
   var num = 0
-  while(num != numClientWorkers) {
+  while(num < numClientWorkers) {
     val responseFuture2 = getNumPipeline ( Get("http://" + serverIP + "/getNum") )
     responseFuture2.foreach { response =>
+      println("current num: " + num)
       num = response.toInt
     }
-    Thread.sleep(100L)
+    Thread.sleep(1000L)
   }
   Thread.sleep(1000L)
   println("get followers count finish. " + numOfFollowers(1))
@@ -302,7 +340,7 @@ object twitterclient extends App {
   twitterClientWorkers(99) ! ViewHomeTimeline
   */
 
-  /* simple test for MentionTweet, GetMentionTimeline */
+  /* simple test for MentionTweet, GetMentionTimeline
   twitterClientWorkers(0) ! MentionTweet(1)
   twitterClientWorkers(0) ! MentionTweet(504)
 
@@ -311,5 +349,30 @@ object twitterclient extends App {
   twitterClientWorkers(1) ! GetMentionTimeline
   twitterClientWorkers(504) ! GetMentionTimeline
   twitterClientWorkers(0) ! ViewHomeTimeline
+  */
+
+  /* simple test for
+  case class PostDirectMessage(receiverID: Double) extends Message
+  case class PostDestroyMessage(delID: Double) extends Message
+  case object ViewReceiveMessage extends Message
+  case object ViewSendMessage extends Message
+  */
+  twitterClientWorkers(1) ! PostDirectMessage(0.1)
+  twitterClientWorkers(1) ! PostDirectMessage(0.1)
+
+  Thread.sleep(2000L)
+
+  twitterClientWorkers(1) ! ViewSendMessage
+  twitterClientWorkers(3339) ! ViewReceiveMessage
+  Thread.sleep(2000L)
+  twitterClientWorkers(3339) ! PostDestroyMessage(0.2)
+  Thread.sleep(2000L)
+  twitterClientWorkers(3339) ! ViewReceiveMessage
+
+  twitterClientWorkers(0) ! ViewReceiveMessage
+  Thread.sleep(2000L)
+  twitterClientWorkers(0) ! PostDestroyMessage(0.2)
+  Thread.sleep(2000L)
+  twitterClientWorkers(0) ! ViewReceiveMessage
 
 }
