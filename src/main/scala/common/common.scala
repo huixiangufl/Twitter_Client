@@ -1,26 +1,17 @@
 package common
-import java.util.Date
-import scala.collection.mutable.ArrayBuffer
 
+import spray.json.DefaultJsonProtocol
 
-sealed trait Message
-case object GetNumofServerWorkers extends Message
-case class numOfServerWorkers(num: Int)
-case object ClientBossReady extends Message
-case object ServerActorWantYouWork extends Message
-
-case object IsServerBossReady extends Message
-case object ServerReady extends Message
-
-case class numFollowers(user_id: Int)
-case class followers_num(num: Int)
-case class viewHomeTimeline(user_id: Int)
-case class viewUserTimeline(user_id: Int)
-case class getTweet(t: Tweet)
-case class displayUserTimeLine(userTimeLine: ArrayBuffer[String])
-case class displayHomeTimeLine(HomeTimeLine: ArrayBuffer[String])
 case class Tweet(user_id: Int, text: String, time_stamp: String, var ref_id: String)
 case class DirectMessage(sender_id: Int, receiver_id: Double, text: String, time_stamp: String, var ref_id: String)
+case class FollowerNum(var userID: Int, var numFollowers: Int)
+
+object MyJsonProtocol extends DefaultJsonProtocol {
+  implicit val followerNumFormat = jsonFormat2(FollowerNum)
+  implicit val tweetFormat = jsonFormat4(Tweet)
+  implicit val messageFormat = jsonFormat5(DirectMessage)
+}
+
 
 //Advanced API Implementation
 //case class getMentionTimeline(user_id: Int)

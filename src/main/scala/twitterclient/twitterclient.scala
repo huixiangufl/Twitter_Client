@@ -1,6 +1,5 @@
 package twitterclient
 
-import common._
 import spray.http._
 import spray.client.pipelining._
 import akka.actor.{ActorSystem, Actor, Props, ActorRef}
@@ -19,16 +18,10 @@ import akka.actor.ActorSystem
 import spray.json.{JsonFormat, DefaultJsonProtocol}
 import spray.httpx.SprayJsonSupport
 import spray.client.pipelining._
+import common._
+import MyJsonProtocol._
 
 
-case class FollowerNum(var userID: Int, var numFollowers: Int)
-
-
-object TweetProtocol extends DefaultJsonProtocol {
-  implicit val followerNumFormat = jsonFormat2(FollowerNum)
-  implicit val tweetFormat = jsonFormat4(Tweet)
-  implicit val messageFormat = jsonFormat5(DirectMessage)
-}
 
 object utility {
    def getHash(s: String): String = {
@@ -90,10 +83,10 @@ object twitterclient extends App {
   import utility._
   /*define various pipelines globally*/
   import SprayJsonSupport._
-  import TweetProtocol._
+//  import TweetProtocol._
   val pipeline = sendReceive
   val postTweetPipeline = sendReceive
-  val getNumPipeline = sendReceive ~> unmarshal[String]//~> unmarshal[Int]
+  val getNumPipeline = sendReceive ~> unmarshal[String]
   val followerPipeline = sendReceive ~> unmarshal[FollowerNum]
   val directMessagesPipeline = sendReceive ~> unmarshal[List[DirectMessage]]
   val timelinePipeline = sendReceive ~> unmarshal[List[Tweet]]
