@@ -2,4 +2,5 @@
 
 memory=$1
 echo -J-Xmx"$memory" -J-Xms"$memory"
-sbt -J-Xmx"$memory" -J-Xms"$memory" "run 1.0"
+echo "./run_client.sh memSize serverIP:port testAPImode sendMode T"
+sbt -J-Xmx"$memory" -J-Xms"$memory" "run $2 $3 $4 $5"
