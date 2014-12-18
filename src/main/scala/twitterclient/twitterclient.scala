@@ -86,13 +86,11 @@ object twitterclient extends App {
   val maxNumOfFollowers = 5000
 
   val serverIP: String = if(args.length > 0) args(0) toString else "10.227.56.44:8080" //"192.168.1.3:9056" //"10.244.33.189:8080" //"10.227.56.44:8080"
-  val testAPIMode: Int = if(args.length > 1) args(1) toInt else 0 // the API you want to test, for each kind of API we have a specific part of code for testing that
-                                                                  // the default value 0 is to test sending tweets
-  val sendMode: Int = if(args.length > 2) args(2) toInt else 1 // option 0: our own send mode; option 1: homogeneous mode
-  val T = if(args.length > 3) args(3) toDouble else 12.5
-  val numClientWorkers: Int = if(args.length > 4) args(4) toInt else 100000
-  val firstClientID: Int = if(args.length > 5) args(5) toInt else 0
-  val numTotalUsers: Int = if(args.length > 6) args(6) toInt else 100000
+  val sendMode: Int = if(args.length > 1) args(1) toInt else 1 // option 0: our own send mode; option 1: homogeneous mode
+  val T = if(args.length > 2) args(2) toDouble else 12.5
+  val numClientWorkers: Int = if(args.length > 3) args(3) toInt else 100000
+  val firstClientID: Int = if(args.length > 4) args(4) toInt else 0
+  val numTotalUsers: Int = if(args.length > 5) args(5) toInt else 100000
 
 
   implicit val system = ActorSystem("UserSystem")
