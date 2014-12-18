@@ -79,9 +79,9 @@ object twitterclient extends App {
   var firstClientID: Int = 0
   val numTotalUsers: Int = 100000
   var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer
-  var maxNumOfFollowers = 5000
-  var T = 12.5
-  var simulateOption = 1 // option 0: our send mode; option 1: junyun mode
+  val maxNumOfFollowers = 5000
+  val T = if(args.length > 0) args(0) toDouble else 1.0
+  var simulateOption = 0 // option 0: our send mode; option 1: junyun mode
 
   var serverIP: String = "192.168.1.3:9056" //"10.244.33.189:8080" //"10.227.56.44:8080"
 
