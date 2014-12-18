@@ -309,17 +309,19 @@ object twitterclient extends App {
     for(i <- 0 until numClientWorkers) {
       if(numOfFollowers(i) != 0) {
         var tweetStartTime = 0
+        var tweetFrequency = 0.0
         if(i == maxIndex) {
           tweetStartTime = 1 * 1000
+          tweetFrequency = 10.0 * 1000
 
           //test type1
-          system.scheduler.scheduleOnce( (tweetStartTime + 18 * 1000) milliseconds, twitterClientWorkers(i), PrintType1)
-          system.scheduler.scheduleOnce( (tweetStartTime + 21 * 1000) milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
-          system.scheduler.scheduleOnce( (tweetStartTime + 22 * 1000) milliseconds, twitterClientWorkers(i), ShowTweet(0.1))
+          system.scheduler.scheduleOnce( (tweetStartTime + 20 * 1000) milliseconds, twitterClientWorkers(i), PrintType1)
+          system.scheduler.scheduleOnce( (tweetStartTime + 24 * 1000) milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
+          system.scheduler.scheduleOnce( (tweetStartTime + 25 * 1000) milliseconds, twitterClientWorkers(i), ShowTweet(0.0))
 
-          system.scheduler.scheduleOnce( (tweetStartTime + 23 * 1000) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
-          system.scheduler.scheduleOnce( (tweetStartTime + 24 * 1000) milliseconds, twitterClientWorkers(i), DestroyTweet(0.1))
-          system.scheduler.scheduleOnce( (tweetStartTime + 25 * 1000) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
+          system.scheduler.scheduleOnce( (tweetStartTime + 26 * 1000) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
+          system.scheduler.scheduleOnce( (tweetStartTime + 27 * 1000) milliseconds, twitterClientWorkers(i), DestroyTweet(0.0))
+          system.scheduler.scheduleOnce( (tweetStartTime + 28 * 1000) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
 
           //test mention, maxIndex mentions his first follower every 10 seconds
           //and after 26 seconds let his first follower get its mention timeline, should have 3
@@ -330,30 +332,30 @@ object twitterclient extends App {
             println( (i + firstClientID).toString + " followersList: " + response.toList + "\n")
           }
           Thread.sleep(1 * 1000L)
-          system.scheduler.scheduleOnce( (tweetStartTime + 26 * 1000) milliseconds, twitterClientWorkers(firstFollower), MentionTweet(firstFollower))
-          system.scheduler.scheduleOnce( (tweetStartTime + 27 * 1000) milliseconds, twitterClientWorkers(firstFollower), GetMentionTimeline)
+          system.scheduler.scheduleOnce( (tweetStartTime + 30 * 1000) milliseconds, twitterClientWorkers(i), MentionTweet(firstFollower))
+          system.scheduler.scheduleOnce( (tweetStartTime + 31 * 1000) milliseconds, twitterClientWorkers(firstFollower), GetMentionTimeline)
 
 
-          //test type2
-          system.scheduler.scheduleOnce( (tweetStartTime + 28 * 1000) milliseconds, twitterClientWorkers(i), PrintType2)
-          system.scheduler.scheduleOnce( (tweetStartTime + 31 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
-          system.scheduler.scheduleOnce( (tweetStartTime + 32 * 1000) milliseconds, twitterClientWorkers(i), CreateFriendship(0.0))
-          system.scheduler.scheduleOnce( (tweetStartTime + 33 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
-          system.scheduler.scheduleOnce( (tweetStartTime + 34 * 1000) milliseconds, twitterClientWorkers(i), DestroyFriendship(0.0))
-          system.scheduler.scheduleOnce( (tweetStartTime + 35 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
+//          //test type2
+          system.scheduler.scheduleOnce( (tweetStartTime + 30 * 1000) milliseconds, twitterClientWorkers(i), PrintType2)
+          system.scheduler.scheduleOnce( (tweetStartTime + 34 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
+          system.scheduler.scheduleOnce( (tweetStartTime + 35 * 1000) milliseconds, twitterClientWorkers(i), CreateFriendship(0.0))
+          system.scheduler.scheduleOnce( (tweetStartTime + 36 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
+          system.scheduler.scheduleOnce( (tweetStartTime + 37 * 1000) milliseconds, twitterClientWorkers(i), DestroyFriendship(0.0))
+          system.scheduler.scheduleOnce( (tweetStartTime + 38 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
 
-
-          //test type3
-          system.scheduler.scheduleOnce( (tweetStartTime + 38 * 1000) milliseconds, twitterClientWorkers(i), PrintType3)
-          system.scheduler.scheduleOnce( (tweetStartTime + 41 * 1000) milliseconds, twitterClientWorkers(i), PostDirectMessage(firstFollower))
-          system.scheduler.scheduleOnce( (tweetStartTime + 42 * 1000) milliseconds, twitterClientWorkers(i), ViewSendMessage)
-          system.scheduler.scheduleOnce( (tweetStartTime + 43 * 1000) milliseconds, twitterClientWorkers(firstFollower), ViewReceiveMessage)
-          system.scheduler.scheduleOnce( (tweetStartTime + 44 * 1000) milliseconds, twitterClientWorkers(firstFollower), PostDestroyMessage(0.0))
-          system.scheduler.scheduleOnce( (tweetStartTime + 45 * 1000) milliseconds, twitterClientWorkers(firstFollower), ViewReceiveMessage)
+//
+//          //test type3
+          system.scheduler.scheduleOnce( (tweetStartTime + 40 * 1000) milliseconds, twitterClientWorkers(i), PrintType3)
+          system.scheduler.scheduleOnce( (tweetStartTime + 44 * 1000) milliseconds, twitterClientWorkers(i), PostDirectMessage(firstFollower))
+          system.scheduler.scheduleOnce( (tweetStartTime + 45 * 1000) milliseconds, twitterClientWorkers(i), ViewSendMessage)
+          system.scheduler.scheduleOnce( (tweetStartTime + 46 * 1000) milliseconds, twitterClientWorkers(firstFollower), ViewReceiveMessage)
+          system.scheduler.scheduleOnce( (tweetStartTime + 47 * 1000) milliseconds, twitterClientWorkers(firstFollower), PostDestroyMessage(0.0))
+          system.scheduler.scheduleOnce( (tweetStartTime + 48 * 1000) milliseconds, twitterClientWorkers(firstFollower), ViewReceiveMessage)
         }else {
           tweetStartTime = Random.nextInt(600 * 1000)
+          tweetFrequency = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
         }
-        val tweetFrequency = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
         tweetFrequencys.append(tweetFrequency)
         tweetStartTimes.append(tweetStartTime)
         // println("user " + (i + firstClientID).toString + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
