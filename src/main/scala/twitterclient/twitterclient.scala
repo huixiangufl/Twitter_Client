@@ -83,7 +83,7 @@ object twitterclient extends App {
   var T = 8.0
   var simulateOption = 1 // option 0: our send mode; option 1: junyun mode
 
-  var serverIP: String = "192.168.1.3:9056" //"10.244.33.189:8080" //"10.227.56.44:8080"
+  var serverIP: String = "10.244.33.189:8080" //"10.244.33.189:8080" //"10.227.56.44:8080"
 
 
   implicit val system = ActorSystem("UserSystem")
@@ -238,7 +238,7 @@ object twitterclient extends App {
     val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + (i + firstClientID).toString))
     responseFuture.foreach { response =>
       numOfFollowers(i) = response.numFollowers
-      //println("client " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
+      println("client " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
     }
   }
   println("getting serverIP finished.")
