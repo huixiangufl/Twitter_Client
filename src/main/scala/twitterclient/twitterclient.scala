@@ -261,7 +261,7 @@ object twitterclient extends App {
     println("get followers num finish. " + numOfFollowers(1))
 
 
-    /* simulate the behavior of sending tweets
+    /* the behavior of sending tweets
    */
     val tweetFrequencys: ArrayBuffer[Double] = new ArrayBuffer
     val tweetStartTimes: ArrayBuffer[Int] = new ArrayBuffer
