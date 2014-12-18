@@ -3,7 +3,7 @@ package common
 import spray.json.DefaultJsonProtocol
 
 case class Tweet(user_id: Int, text: String, time_stamp: String, var ref_id: String)
-case class DirectMessage(sender_id: Int, receiver_id: Double, text: String, time_stamp: String, var ref_id: String)
+case class DirectMessage(sender_id: Int, receiver_id: Int, text: String, time_stamp: String, var ref_id: String)
 case class followerNum(var userID: Int, var numFollowers: Int)
 
 object MyJsonProtocol extends DefaultJsonProtocol {

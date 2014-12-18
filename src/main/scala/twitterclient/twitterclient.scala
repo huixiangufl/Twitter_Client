@@ -65,12 +65,18 @@ object twitterclient extends App {
   case class CreateFriendship (newFriend: Double) extends Message
   case class DestroyFriendship (oldFriend: Double) extends Message
   case class DestroyTweet(deleteTweet: Double) extends Message
-  case class PostDirectMessage(receiverID: Double) extends Message
+  case class PostDirectMessage(receiverID: Int) extends Message
   case class PostDestroyMessage(delID: Double) extends Message
   case object ViewReceiveMessage extends Message
   case object ViewSendMessage extends Message
 
+  //just for testting!!!
   case object SendTest extends Message
+  case object PrintType1 extends Message
+  case object PrintType2 extends Message
+  case object PrintType3 extends Message
+
+
 
   var numTweets = 0
   var numDirectMessages = 0
@@ -113,7 +119,7 @@ object twitterclient extends App {
 
 
   def postDirectMessage(d: DirectMessage) {
-    postTweetPipeline(Post("http://" + serverIP + "/postMessage?userID=" + d.sender_id + "&sendID=" + d.receiver_id + "&text=" + d.text + "&timeStamp=" + d.time_stamp + "&refID=" + d.ref_id))
+    postTweetPipeline(Post("http://" + serverIP + "/postMessage?userID=" + d.sender_id + "&receiveID=" + d.receiver_id + "&text=" + d.text + "&timeStamp=" + d.time_stamp + "&refID=" + d.ref_id))
   }
 
 
@@ -231,6 +237,31 @@ object twitterclient extends App {
         pipeline(Post("http://" + serverIP + "/destroyTweet?user_ID=" + userID + "&del_ID=" + deleteTweet))
       }
 
+
+      case PrintType1 => {
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("------------Testing API: getHomeTimeline, retweet, getUserTimeline, showTweet, destroyTweet-------------------")
+        println("------------Testing API: getFollowers, mention(@), getMentionTimeline-----------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+      }
+
+      case PrintType2 => {
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("------------Testing API: getFriends, postCreateFriendship, postDestroyFridnship-------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+      }
+
+      case PrintType3 => {
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("-----Testing API: postDirectMessage, getDirectMessageSent, getDirectMessageReceive, postDestroyMessage--------")
+        println("--------------------------------------------------------------------------------------------------------------")
+        println("--------------------------------------------------------------------------------------------------------------")
+      }
     }
   }
 
@@ -269,7 +300,7 @@ object twitterclient extends App {
       Thread.sleep(1000L)
     }
     Thread.sleep(1000L)
-    println("get followers num finish. " + numOfFollowers(1) + "\n")
+    println("get followers num finish. \n")
 
 
     /* the behavior of sending tweets
@@ -284,6 +315,7 @@ object twitterclient extends App {
           tweetStartTime = 1 * 1000
 
           //test type1
+          system.scheduler.scheduleOnce( (tweetStartTime + 18 * 1000) milliseconds, twitterClientWorkers(i), PrintType1)
           system.scheduler.scheduleOnce( (tweetStartTime + 21 * 1000) milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
           system.scheduler.scheduleOnce( (tweetStartTime + 22 * 1000) milliseconds, twitterClientWorkers(i), ShowTweet(0.1))
 
@@ -291,18 +323,35 @@ object twitterclient extends App {
           system.scheduler.scheduleOnce( (tweetStartTime + 24 * 1000) milliseconds, twitterClientWorkers(i), DestroyTweet(0.1))
           system.scheduler.scheduleOnce( (tweetStartTime + 25 * 1000) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
 
-          //test mention, maxIndex mentions 0 every 10 seconds, and after 26 seconds let 0 get its mention timeline, should have 3
-          system.scheduler.schedule(tweetStartTime milliseconds, 10 * 1000 milliseconds, twitterClientWorkers(i), MentionTweet(0))
-          system.scheduler.scheduleOnce( (tweetStartTime + 26 * 1000) milliseconds, twitterClientWorkers(0), GetMentionTimeline)
+          //test mention, maxIndex mentions his first follower every 10 seconds
+          //and after 26 seconds let his first follower get its mention timeline, should have 3
+          val followersResponse = arrayPipeline(Get("http://" + serverIP + "/getFollowers/" + maxIndex))
+          var firstFollower = -1
+          followersResponse.foreach { response =>
+            firstFollower = response(0)
+            println( (i + firstClientID).toString + " followersList: " + response.toList + "\n")
+          }
+          Thread.sleep(1 * 1000L)
+          system.scheduler.schedule(tweetStartTime milliseconds, 10 * 1000 milliseconds, twitterClientWorkers(i), MentionTweet(firstFollower))
+          system.scheduler.scheduleOnce( (tweetStartTime + 26 * 1000) milliseconds, twitterClientWorkers(firstFollower), GetMentionTimeline)
 
 
           //test type2
+          system.scheduler.scheduleOnce( (tweetStartTime + 28 * 1000) milliseconds, twitterClientWorkers(i), PrintType2)
           system.scheduler.scheduleOnce( (tweetStartTime + 31 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
           system.scheduler.scheduleOnce( (tweetStartTime + 32 * 1000) milliseconds, twitterClientWorkers(i), CreateFriendship(0.0))
           system.scheduler.scheduleOnce( (tweetStartTime + 33 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
           system.scheduler.scheduleOnce( (tweetStartTime + 34 * 1000) milliseconds, twitterClientWorkers(i), DestroyFriendship(0.0))
           system.scheduler.scheduleOnce( (tweetStartTime + 35 * 1000) milliseconds, twitterClientWorkers(i), GetFriends)
 
+
+          //test type3
+          system.scheduler.scheduleOnce( (tweetStartTime + 38 * 1000) milliseconds, twitterClientWorkers(i), PrintType3)
+          system.scheduler.scheduleOnce( (tweetStartTime + 41 * 1000) milliseconds, twitterClientWorkers(i), PostDirectMessage(firstFollower))
+          system.scheduler.scheduleOnce( (tweetStartTime + 42 * 1000) milliseconds, twitterClientWorkers(i), ViewSendMessage)
+          system.scheduler.scheduleOnce( (tweetStartTime + 43 * 1000) milliseconds, twitterClientWorkers(firstFollower), ViewReceiveMessage)
+          system.scheduler.scheduleOnce( (tweetStartTime + 44 * 1000) milliseconds, twitterClientWorkers(firstFollower), PostDestroyMessage(0.0))
+          system.scheduler.scheduleOnce( (tweetStartTime + 45 * 1000) milliseconds, twitterClientWorkers(firstFollower), ViewReceiveMessage)
         }else {
           tweetStartTime = Random.nextInt(600 * 1000)
         }
@@ -311,7 +360,7 @@ object twitterclient extends App {
         tweetStartTimes.append(tweetStartTime)
         // println("user " + (i + firstClientID).toString + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
         system.scheduler.schedule(tweetStartTime milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), SendTweet)
-        // system.scheduler.schedule(tweetStartTime + 10 milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), PostDirectMessage(0.1))
+        // system.scheduler.schedule(tweetStartTime + 10 milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), PostDirectMessage(1))
         // system.scheduler.scheduleOnce( tweetStartTime + ((tweetFrequency * 1.5).toInt) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
       }else {
         tweetFrequencys.append(0)
