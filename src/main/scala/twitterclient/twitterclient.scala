@@ -69,13 +69,21 @@ object twitterclient extends App {
   case object ViewReceiveMessage extends Message
   case object ViewSendMessage extends Message
 
-  var numClientWorkers: Int = 10000
-  var firstClientID: Int = 0
-  var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer
-  var maxNumOfFollowers = 100001
-  var T = 0.5
+  case object SendTest extends Message
 
-  var serverIP: String = "10.227.56.44:8080"
+  var numTweets = 0
+  var numDirectMessages = 0
+  var numTests = 0
+
+  var numClientWorkers: Int = 100000
+  var firstClientID: Int = 0
+  val numTotalUsers: Int = 100000
+  var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer
+  var maxNumOfFollowers = 5000
+  var T = 12.5
+  var simulateOption = 1 // option 0: our send mode; option 1: junyun mode
+
+  var serverIP: String = "10.244.33.189:8080" //"10.227.56.44:8080"
 
   implicit val system = ActorSystem("UserSystem")
   import system.dispatcher
@@ -86,8 +94,9 @@ object twitterclient extends App {
 //  import TweetProtocol._
   val pipeline = sendReceive
   val postTweetPipeline = sendReceive
+  val postTweetPipeline2 = sendReceive
   val getNumPipeline = sendReceive ~> unmarshal[String]
-  val followerPipeline = sendReceive ~> unmarshal[FollowerNum]
+  val followerPipeline = sendReceive ~> unmarshal[followerNum]
   val directMessagesPipeline = sendReceive ~> unmarshal[List[DirectMessage]]
   val timelinePipeline = sendReceive ~> unmarshal[List[Tweet]]
   val arrayPipeline = sendReceive ~> unmarshal[Array[Int]]
@@ -114,22 +123,35 @@ object twitterclient extends App {
   class clientWorkerActor( ) extends Actor{
     val userID = self.path.name.toInt
     def receive = {
+      case SendTest => {
+        numTests += 1
+//        println("numtests: " + numTests)
+        postTweetPipeline(Post("http://" + serverIP + "/test?userID=" + userID))
+//        pipeline(Post("http://" + serverIP + "/test1?userID=" + userID))
+//        postTweetPipeline2(Post("http://" + serverIP + "/test2?userID=" + userID))
+      }
       case SendTweet => {
+        numTweets += 1
+//        println("tweets: " + numTweets)
         val t = Tweet(userID, genRandTweet, dateToString(getCurrentTime), null)
         t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
         postTweet(t, -1)
-        println(userID + " sends tweet: " + t)
+//        println(userID + " sends tweet: " + t)
       }
       case MentionTweet(mentionID) => {
         val t = Tweet(userID, "@" + mentionID.toString + genRandTweet, dateToString(getCurrentTime), null)
         t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
         postTweet(t, mentionID)
-        println(userID + " mentions tweet: " + t)
+//        println(userID + " mentions tweet: " + t)
       }
       case PostDirectMessage(receiverID) => {
-        val t = DirectMessage(userID, receiverID, genRandTweet, dateToString(getCurrentTime), null)
-        t.ref_id = getHash(t.sender_id.toString + t.receiver_id.toString + t.text + t.time_stamp)
-        postDirectMessage(t)
+        if(numOfFollowers(userID-firstClientID) > 0) {
+          numDirectMessages += 1
+//          println("directMessages: " + numDirectMessages)
+          val t = DirectMessage(userID, receiverID, genRandTweet, dateToString(getCurrentTime), null)
+          t.ref_id = getHash(t.sender_id.toString + t.receiver_id.toString + t.text + t.time_stamp)
+          postDirectMessage(t)
+        }
       }
       case PostDestroyMessage(delID) => {
         postTweetPipeline(Post("http://" + serverIP + "/destroyMessage?user_ID=" + userID + "&del_ID=" + delID))
@@ -149,6 +171,9 @@ object twitterclient extends App {
       }
       case ViewUserTimeline => {
         val userTimelineResponse = timelinePipeline(Get("http://" + serverIP + "/viewUserTimeline/" + userID))
+        //for testing, chx
+        println(userID + " viewTime: " + getCurrentTime)
+        //
         userTimelineResponse.foreach { response =>
           println(userID + "  userTimeline: \n" + response.toJson.prettyPrint + "\n")
         }
@@ -209,17 +234,17 @@ object twitterclient extends App {
 
   /*second interaction step: get the number of followers for each client worker actor*/
   for(i <-0 until numClientWorkers) {
-    val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + i))
+    val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + (i + firstClientID).toString))
     responseFuture.foreach { response =>
       numOfFollowers(i) = response.numFollowers
-      println("client " + i + " followers: " + numOfFollowers(i))
+      //println("client " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
     }
   }
-  println("finish.")
+  println("getting serverIP finished.")
 
   /*check if all actors get their followers count*/
   var num = 0
-  while(num < numClientWorkers) {
+  while(num < numTotalUsers) {
     val responseFuture2 = getNumPipeline ( Get("http://" + serverIP + "/getNum") )
     responseFuture2.foreach { response =>
       num = response.toInt
@@ -230,32 +255,52 @@ object twitterclient extends App {
   println("get followers num finish. " + numOfFollowers(1))
 
 
-  /* simulate the behavior of sending tweets
-  val tweetFrequencys: ArrayBuffer[Double] = new ArrayBuffer
-  val tweetStartTimes: ArrayBuffer[Int] = new ArrayBuffer
-  for(i <- 0 until numClientWorkers) {
-    if(numOfFollowers(i) != 0) {
-      val tweetFrequency = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
-      val tweetStartTime = Random.nextInt(60 * 1000)
-      tweetFrequencys.append(tweetFrequency)
-      tweetStartTimes.append(tweetStartTime)
-      println("client " + i + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
-      system.scheduler.schedule(tweetStartTime milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), SendTweet)
-      system.scheduler.scheduleOnce( tweetStartTime + ((tweetFrequency * 1.5).toInt) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
-    }else {
-      tweetFrequencys.append(0)
-      tweetStartTimes.append(0)
+  if(simulateOption == 0) {
+    /* simulate the behavior of sending tweets
+   */
+    val tweetFrequencys: ArrayBuffer[Double] = new ArrayBuffer
+    val tweetStartTimes: ArrayBuffer[Int] = new ArrayBuffer
+    for(i <- 0 until numClientWorkers) {
+      if(numOfFollowers(i) != 0) {
+        val tweetFrequency = maxNumOfFollowers.toDouble * T * 1000.0 / numOfFollowers(i).toDouble
+        val tweetStartTime = Random.nextInt(10 * 1000)
+        tweetFrequencys.append(tweetFrequency)
+        tweetStartTimes.append(tweetStartTime)
+        // println("client " + (i + firstClientID).toString + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
+        system.scheduler.schedule(tweetStartTime milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), SendTweet)
+//        system.scheduler.schedule(tweetStartTime + 10 milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), PostDirectMessage(0.1))
+        //      system.scheduler.scheduleOnce( tweetStartTime + ((tweetFrequency * 1.5).toInt) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
+      }else {
+        tweetFrequencys.append(0)
+        tweetStartTimes.append(0)
+      }
+    }
+    println("Setting tweeting frequency finished");
+
+    val maxIndex = numOfFollowers.indexOf(numOfFollowers.max, 0)
+    println("max index: " + maxIndex)
+    println("max start time: " + tweetStartTimes(maxIndex) / 1000.0 + " tweet frequency: " + tweetFrequencys(maxIndex) / 1000.0 + " num of followers: " + numOfFollowers(maxIndex))
+
+    Thread.sleep(tweetStartTimes(maxIndex) + tweetFrequencys(maxIndex).toInt * 5)
+
+  } else if(simulateOption == 1) {
+    for (i <- 0 until numClientWorkers) {
+      if (Random.nextDouble() <= 1.0) {
+        val tweetStartTime = Random.nextInt(10 * 1000)
+//        val viewStartTime = Random.nextInt(300 * 1000)
+//        system.scheduler.schedule(tweetStartTime milliseconds, T seconds, twitterClientWorkers(i), SendTest)
+        system.scheduler.schedule(tweetStartTime milliseconds, T seconds, twitterClientWorkers(i), SendTweet)
+//        system.scheduler.scheduleOnce(tweetStartTime + viewStartTime milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
+//        system.scheduler.schedule(tweetStartTime milliseconds, T seconds, twitterClientWorkers(i), PostDirectMessage(0.1))
+//        system.scheduler.scheduleOnce(tweetStartTime + 5000 milliseconds, twitterClientWorkers(i), ViewUserTimeline)
+//        system.scheduler.scheduleOnce(tweetStartTime + 5000 milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
+      }
     }
   }
 
-  var maxIndex = numOfFollowers.indexOf(numOfFollowers.max, 0)
-  println("max index: " + maxIndex)
-  println("max start time: " + tweetStartTimes(maxIndex) + " tweet frequency: " + tweetFrequencys(maxIndex))
 
-  Thread.sleep(tweetStartTimes(maxIndex) + tweetFrequencys(maxIndex).toInt * 5)
 
-  twitterClientWorkers(maxIndex) ! ViewUserTimeline
-  */
+//  twitterClientWorkers(maxIndex) ! ViewUserTimeline
 
   /* for testing GetFriends, GetFollowers
   twitterClientWorkers(0) ! GetFriends
@@ -342,7 +387,6 @@ object twitterclient extends App {
   case class PostDestroyMessage(delID: Double) extends Message
   case object ViewReceiveMessage extends Message
   case object ViewSendMessage extends Message
-  */
   twitterClientWorkers(1) ! PostDirectMessage(0.1)
   twitterClientWorkers(1) ! PostDirectMessage(0.1)
 
@@ -360,5 +404,6 @@ object twitterclient extends App {
   twitterClientWorkers(0) ! PostDestroyMessage(0.2)
   Thread.sleep(2000L)
   twitterClientWorkers(0) ! ViewReceiveMessage
+  */
 
 }
