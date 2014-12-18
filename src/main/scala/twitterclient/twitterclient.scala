@@ -80,7 +80,7 @@ object twitterclient extends App {
   val numTotalUsers: Int = 100000
   var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer
   var maxNumOfFollowers = 5000
-  var T = 8.0
+  var T = 12.5
   var simulateOption = 1 // option 0: our send mode; option 1: junyun mode
 
   var serverIP: String = "192.168.1.3:9056" //"10.244.33.189:8080" //"10.227.56.44:8080"
@@ -133,7 +133,7 @@ object twitterclient extends App {
       }
       case SendTweet => {
         numTweets += 1
-//        println("tweets: " + numTweets)
+        println("tweets: " + numTweets)
         val t = Tweet(userID, genRandTweet, dateToString(getCurrentTime), null)
         t.ref_id = getHash(t.user_id.toString + t.text + t.time_stamp)
         postTweet(t, -1)
