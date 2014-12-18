@@ -330,8 +330,8 @@ object twitterclient extends App {
             println( (i + firstClientID).toString + " followersList: " + response.toList + "\n")
           }
           Thread.sleep(1 * 1000L)
-          system.scheduler.schedule(tweetStartTime milliseconds, 10 * 1000 milliseconds, twitterClientWorkers(i), MentionTweet(firstFollower))
-          system.scheduler.scheduleOnce( (tweetStartTime + 26 * 1000) milliseconds, twitterClientWorkers(firstFollower), GetMentionTimeline)
+          system.scheduler.scheduleOnce( (tweetStartTime + 26 * 1000) milliseconds, twitterClientWorkers(firstFollower), MentionTweet(firstFollower))
+          system.scheduler.scheduleOnce( (tweetStartTime + 27 * 1000) milliseconds, twitterClientWorkers(firstFollower), GetMentionTimeline)
 
 
           //test type2
