@@ -88,7 +88,6 @@ object twitterclient extends App {
   val numTotalUsers: Int = if(args.length > 6) args(6) toInt else 100000
 
 
-
   implicit val system = ActorSystem("UserSystem")
   import system.dispatcher
 
@@ -235,30 +234,33 @@ object twitterclient extends App {
 
 
 
-  /*second interaction step: get the number of followers for each client worker actor*/
-  for(i <-0 until numClientWorkers) {
-    val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + (i + firstClientID).toString))
-    responseFuture.foreach { response =>
-      numOfFollowers(i) = response.numFollowers
-      println("user " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
-    }
-  }
-  println("getting serverIP finished.")
-
-  /*check if all actors get their followers count*/
-  var num = 0
-  while(num < numTotalUsers) {
-    val responseFuture2 = getNumPipeline ( Get("http://" + serverIP + "/getNum") )
-    responseFuture2.foreach { response =>
-      num = response.toInt
-    }
-    Thread.sleep(1000L)
-  }
-  Thread.sleep(1000L)
-  println("get followers num finish. " + numOfFollowers(1))
 
 
   if(sendMode == 0) {
+    /*second interaction step: get the number of followers for each client worker actor*/
+    for(i <-0 until numClientWorkers) {
+      val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + (i + firstClientID).toString))
+      responseFuture.foreach { response =>
+        numOfFollowers(i) = response.numFollowers
+        println("user " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
+      }
+    }
+    println("getting serverIP finished.")
+
+
+    /*check if all actors get their followers count*/
+    var num = 0
+    while(num < numTotalUsers) {
+      val responseFuture2 = getNumPipeline ( Get("http://" + serverIP + "/getNum") )
+      responseFuture2.foreach { response =>
+        num = response.toInt
+      }
+      Thread.sleep(1000L)
+    }
+    Thread.sleep(1000L)
+    println("get followers num finish. " + numOfFollowers(1))
+
+
     /* simulate the behavior of sending tweets
    */
     val tweetFrequencys: ArrayBuffer[Double] = new ArrayBuffer
@@ -283,20 +285,13 @@ object twitterclient extends App {
     val maxIndex = numOfFollowers.indexOf(numOfFollowers.max, 0)
     println("max index: " + maxIndex)
     println("max start time: " + tweetStartTimes(maxIndex) / 1000.0 + " tweet frequency: " + tweetFrequencys(maxIndex) / 1000.0 + " num of followers: " + numOfFollowers(maxIndex))
-
     Thread.sleep(tweetStartTimes(maxIndex) + tweetFrequencys(maxIndex).toInt * 5)
 
   } else if(sendMode == 1) {
     for (i <- 0 until numClientWorkers) {
       if (Random.nextDouble() <= 1.0) {
         val tweetStartTime = Random.nextInt(10 * 1000)
-//        val viewStartTime = Random.nextInt(300 * 1000)
-//        system.scheduler.schedule(tweetStartTime milliseconds, T seconds, twitterClientWorkers(i), SendTest)
         system.scheduler.schedule(tweetStartTime milliseconds, T seconds, twitterClientWorkers(i), SendTweet)
-//        system.scheduler.scheduleOnce(tweetStartTime + viewStartTime milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
-//        system.scheduler.schedule(tweetStartTime milliseconds, T seconds, twitterClientWorkers(i), PostDirectMessage(0.1))
-//        system.scheduler.scheduleOnce(tweetStartTime + 5000 milliseconds, twitterClientWorkers(i), ViewUserTimeline)
-//        system.scheduler.scheduleOnce(tweetStartTime + 5000 milliseconds, twitterClientWorkers(i), ViewHomeTimeline)
       }
     }
   }
