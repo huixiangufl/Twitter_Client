@@ -75,15 +75,18 @@ object twitterclient extends App {
   var numDirectMessages = 0
   var numTests = 0
 
-  var numClientWorkers: Int = 100000
-  var firstClientID: Int = 0
-  val numTotalUsers: Int = 100000
   var numOfFollowers: ArrayBuffer[Int] = new ArrayBuffer
   val maxNumOfFollowers = 5000
-  val T = if(args.length > 0) args(0) toDouble else 1.0
-  var simulateOption = 0 // option 0: our send mode; option 1: junyun mode
 
-  var serverIP: String = "192.168.1.3:9056" //"10.244.33.189:8080" //"10.227.56.44:8080"
+  val serverIP: String = if(args.length > 0) args(0) toString else "10.244.33.189:8080" //"192.168.1.3:9056" //"10.244.33.189:8080" //"10.227.56.44:8080"
+  val testAPIMode: Int = if(args.length > 1) args(1) toInt else 0 // the API you want to test, for each kind of API we have a specific part of code for testing that
+                                                                  // the default value 0 is to test sending tweets
+  val sendMode: Int = if(args.length > 2) args(2) toInt else 1 // option 0: our own send mode; option 1: homogeneous mode
+  val T = if(args.length > 3) args(3) toDouble else 12.5
+  val numClientWorkers: Int = if(args.length > 4) args(4) toInt else 100000
+  val firstClientID: Int = if(args.length > 5) args(5) toInt else 0
+  val numTotalUsers: Int = if(args.length > 6) args(6) toInt else 100000
+
 
 
   implicit val system = ActorSystem("UserSystem")
@@ -92,7 +95,6 @@ object twitterclient extends App {
   import utility._
   /*define various pipelines globally*/
   import SprayJsonSupport._
-//  import TweetProtocol._
   val pipeline = sendReceive
   val postTweetPipeline = sendReceive
   val postTweetPipeline2 = sendReceive
@@ -238,7 +240,7 @@ object twitterclient extends App {
     val responseFuture = followerPipeline (Get("http://" + serverIP + "/getFollowerNum/" + (i + firstClientID).toString))
     responseFuture.foreach { response =>
       numOfFollowers(i) = response.numFollowers
-      println("client " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
+      println("user " + (i + firstClientID).toString + " followers: " + numOfFollowers(i))
     }
   }
   println("getting serverIP finished.")
@@ -256,7 +258,7 @@ object twitterclient extends App {
   println("get followers num finish. " + numOfFollowers(1))
 
 
-  if(simulateOption == 0) {
+  if(sendMode == 0) {
     /* simulate the behavior of sending tweets
    */
     val tweetFrequencys: ArrayBuffer[Double] = new ArrayBuffer
@@ -267,7 +269,7 @@ object twitterclient extends App {
         val tweetStartTime = Random.nextInt(10 * 1000)
         tweetFrequencys.append(tweetFrequency)
         tweetStartTimes.append(tweetStartTime)
-        // println("client " + (i + firstClientID).toString + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
+        // println("user " + (i + firstClientID).toString + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
         system.scheduler.schedule(tweetStartTime milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), SendTweet)
 //        system.scheduler.schedule(tweetStartTime + 10 milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), PostDirectMessage(0.1))
         //      system.scheduler.scheduleOnce( tweetStartTime + ((tweetFrequency * 1.5).toInt) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
@@ -284,7 +286,7 @@ object twitterclient extends App {
 
     Thread.sleep(tweetStartTimes(maxIndex) + tweetFrequencys(maxIndex).toInt * 5)
 
-  } else if(simulateOption == 1) {
+  } else if(sendMode == 1) {
     for (i <- 0 until numClientWorkers) {
       if (Random.nextDouble() <= 1.0) {
         val tweetStartTime = Random.nextInt(10 * 1000)
