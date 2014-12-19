@@ -358,10 +358,7 @@ object twitterclient extends App {
         }
         tweetFrequencys.append(tweetFrequency)
         tweetStartTimes.append(tweetStartTime)
-        // println("user " + (i + firstClientID).toString + " sends tweets, frequency: " + tweetFrequency / 1000.0 + " start time: " + tweetStartTime / 1000.0)
         system.scheduler.schedule(tweetStartTime milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), SendTweet)
-        // system.scheduler.schedule(tweetStartTime + 10 milliseconds, tweetFrequency milliseconds, twitterClientWorkers(i), PostDirectMessage(1))
-        // system.scheduler.scheduleOnce( tweetStartTime + ((tweetFrequency * 1.5).toInt) milliseconds, twitterClientWorkers(i), ViewUserTimeline)
       }else {
         tweetFrequencys.append(0)
         tweetStartTimes.append(0)
